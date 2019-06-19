@@ -40,9 +40,10 @@ class IT8951 {
     LUT01AF   = 0x1114,   //LUT0 and LUT1 Active Flag Reg
 
     //Update Parameter Setting Register
-    UP0SR = 0x1134,      //Update Parameter0 Setting Reg
-
-    UP1SR     = 0x1138,  //Update Parameter1 Setting Reg
+    UP0SR     = 0x1134,  // Update Parameter0 Setting Reg
+    UP1SR     = 0x1138,  // Update Parameter1 Setting Reg
+    UP1SR2    = 0x113A,
+    
     LUT0ABFRV = 0x113C,  //LUT0 Alpha blend and Fill rectangle Value
     UPBBADDR  = 0x117C,  //Update Buffer Base Address
     LUT0IMXY  = 0x1180,  //LUT0 Image buffer X/Y offset Reg
@@ -72,26 +73,120 @@ class IT8951 {
   };
 
  public:
-  IT8951(int8_t cspin, int8_t resetpin, int8_t readypin);
-  bool begin(uint32_t speed = 500000);
-  void active();
-  void standby();
-  void sleep();
-  uint16_t width();
-  uint16_t height();
-  void setImageBuffer(uint32_t addr);
+  enum ROTATE {
+    ROTATE_0   = 0,
+    ROTATE_90  = 1,
+    ROTATE_180 = 2,
+    ROTATE_270 = 3,
+  };
 
+  enum BPP {
+    BPP_2 = 0,
+    BPP_3 = 1,
+    BPP_4 = 2,
+    BPP_8 = 3,
+  };
+
+  enum ENDIAN {
+    LITTLE = 0,
+    BIG = 1
+  };
+
+  /** \brief Construct new IT8951 object
+   *  \param cspin     spi clock select GPIO pin
+   *  \param resetpin  it8951 reset GPIO pin
+   *  \param readypin  it8951 ready GPIO pin
+   */
+  IT8951(int cspin, int resetpin, int readypin);
+
+  /** \brief Initialize E-Paper Display connection
+   *  \param speed SPI speed in Hz
+   *  \return true if sucessfully initialized
+   */
+  bool begin(uint32_t speed = 4000000);
+  
+  /** \brief Active
+   *  Enable clocks
+   */
+  void active();
+
+  /** \brief Standby
+   *  Disable clocks
+   */
+  void standby();
+
+  /** \brief Sleep mode
+   */
+  void sleep();
+
+  /** \brief Get Display Width
+   *  \return width of display
+   */
+  uint16_t width();
+
+  /** \brief Get Display Height
+   *  \return height of display
+   */
+  uint16_t height();
+
+  /** \brief Load Image from host buffer
+   *  
+   *  \param buf    pointer to host buffer
+   *  \param len    length of buffer
+   *  \param x      left space (default: no space)
+   *  \param y      top space (default: no space)
+   *  \param width  width of image (default: UINT16_MAX for maximum of display)
+   *  \param height height of image (default: UINT16_MAX for maximum of display)
+   *  \param rot    Rotation of image (default: none)
+   *  \param bpp    Bits per pixel, buffer packed like described in IT8951 Manual / Fig 7-17 (default: 4bpp / 16 color)
+   *  \param e      Endianess (default: little endian)
+   *  \param addr   Target memory buffer base address (default: 0 for auto image buffer)
+   *  \return true if successfully executed, false on error (dimension issues, length invalid etc)
+   */
+  bool loadImage(uint16_t *buf, size_t len, uint16_t x = 0, uint16_t y = 0, uint16_t width = UINT16_MAX, uint16_t height = UINT16_MAX, enum ROTATE rot = ROTATE_0, enum BPP bpp = BPP_4, enum ENDIAN e = LITTLE, uint32_t addr = 0);
+
+ /** \brief Display loaded buffer
+   *  
+   *  \param x      left space (default: no space)
+   *  \param y      top space (default: no space)
+   *  \param width  width of image (default: UINT16_MAX for maximum of display)
+   *  \param height height of image (default: UINT16_MAX for maximum of display)
+   *  \param mode   Mode (waveform?)
+   *  \param addr   Target memory buffer base address (default: 0 for auto image buffer)
+   *  \return true if successfully executed, false on error (dimension issues, length invalid etc)
+   */
+  bool display(uint16_t x = 0, uint16_t y = 0, uint16_t width = UINT16_MAX, uint16_t height = UINT16_MAX, uint16_t mode = 2, uint32_t addr = 0);
+
+  /** \brief Clear Image buffer
+   *  
+   *  \param white  white or black
+   *  \param x      left space (default: no space)
+   *  \param y      top space (default: no space)
+   *  \param width  width of image (default: UINT16_MAX for maximum of display)
+   *  \param height height of image (default: UINT16_MAX for maximum of display)
+   *  \param mode   Mode (waveform?)
+   *  \return true if successfully executed, false on error (dimension issues, length invalid etc)
+   */
+  bool clear(uint16_t x = 0, uint16_t y = 0, uint16_t width = UINT16_MAX, uint16_t height = UINT16_MAX, uint16_t mode = 0);
+
+  /** \brief Retrieve/Update Device and Panel Information
+   */
+  void updateDeviceInfo();
+  
  private:
   void waitUntilReady();
   void command(enum COMMANDS cmd);
   void write(uint16_t data[], size_t len);
   void read(uint16_t data[], size_t len);
-  DevInfo getDevInfo();
   uint16_t readRegister(enum REGISTER reg);
   void writeRegister(enum REGISTER reg, uint16_t value);
   void waitForDisplay();
+  void memBurstWrite(uint32_t addr, uint32_t size, uint16_t * buf);
+  void memBurstRead(uint32_t addr, uint32_t size, uint16_t * buf);
+  void setImageBuffer(uint32_t addr);
+  
 
-  int8_t _cs, _rst, _hrdy;
+  int _cs, _rst, _hrdy;
   DevInfo info;
   uint32_t SPIspeed; 
 

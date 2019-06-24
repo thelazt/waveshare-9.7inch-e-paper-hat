@@ -175,6 +175,13 @@ class IT8951 {
    */
   char * getLUT();
 
+  /** \brief Wait until Display signals ready LUT Version
+   *  \param timeout  additional (to timeoutDisplay) timeout
+   *  \return true if ready received before both timeouts were triggered
+   */
+  bool waitForDisplay(uint32_t timeout = 0);
+
+
   /** \brief Load Image from host buffer into IT8951 buffer
    *  
    *  \param buf    pointer to host buffer
@@ -238,7 +245,6 @@ class IT8951 {
   bool read(uint16_t data[], size_t len);
   bool readRegister(enum REGISTER reg, uint16_t &value);
   bool writeRegister(enum REGISTER reg, uint16_t value);
-  bool waitForDisplay(uint32_t timeout = 0);
   bool memBurstWrite(uint32_t addr, uint32_t size, uint16_t * buf);
   bool memBurstRead(uint32_t addr, uint32_t size, uint16_t * buf);
  

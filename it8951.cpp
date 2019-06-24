@@ -96,9 +96,10 @@ bool IT8951::read(uint16_t data[], size_t len) {
     SPI.transfer16(READ_DATA);
     if ((success = waitUntilReady())){
       data[0] = SPI.transfer16(0);
-      if ((success = waitUntilReady()))
+      if ((success = waitUntilReady())){
         for (size_t i = 0; i < len; i++)
           data[i] = SPI.transfer16(0);
+      }
     }
   }
   digitalWrite(_cs, HIGH);

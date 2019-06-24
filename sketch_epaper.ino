@@ -22,11 +22,11 @@ void setup() {
   Serial.println(epd.getLUT());
 
   for (int i = 0; i < 1000; i++)
-    test[i] = 0x00ff;
+    test[i] = 0xaaaa;
   
   if (epd.active())
     Serial.println("active");
-  if (epd.clear())
+  if (epd.clear(false))
     Serial.println("cleared");
 }
 
@@ -43,22 +43,23 @@ void loop() {
   x += 50;
   if (x > 1150){
     x = 0;
-    y+=80;
+    y+= 80;
   }
   if (y > 745){
     y = 0;
   }
+  epd.waitForDisplay();  
   Serial.print("Load ");
   Serial.println(epd.load(test, 1000, x, y, 50, 80));
- 
+  epd.waitForDisplay();  
   if (n++ % 5 == 0){
     Serial.print("Full refresh ");
     Serial.println(epd.display(0, 0, 2000, 2000));
   } else {
     Serial.print("Partial refresh ");
     Serial.println(epd.display(x,y, 50, 80));
-
   }
+  epd.waitForDisplay();  
   Serial.print("Sleep ");
   Serial.println(epd.sleep());
   Serial.println();

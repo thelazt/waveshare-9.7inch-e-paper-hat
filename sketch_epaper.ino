@@ -10,21 +10,36 @@ void setup() {
   Serial.println("Init");
 
   epd.begin(4000000);
-  Serial.println("Ready");
-  //Serial.println(epd.display(0, 0, UINT16_MAX, UINT16_MAX, 0));
-  //Serial.println(epd.display());
+  Serial.print("Device Info:\n Panel ");
+  Serial.print(epd.width());
+  Serial.print(" x ");
+  Serial.println(epd.height());
+  Serial.print(" Address 0x");
+  Serial.println(epd.defaultImageBuffer(), HEX);
+  Serial.print(" Firmware: ");
+  Serial.println(epd.getFW());
+  Serial.print(" LUT: ");
+  Serial.println(epd.getLUT());
+
   for (int i = 0; i < 1000; i++)
     test[i] = 0x00ff;
-
-  epd.clear();
-  Serial.println("Cleared");
+  
+  if (epd.active())
+    Serial.println("active");
+  if (epd.clear())
+    Serial.println("cleared");
 }
 
 int x = 0;
 int y = 0;
 int n = 0;
 void loop() {
-  Serial.println("Looping");
+  Serial.print("Loop ");
+  Serial.println(n);
+  if (!epd.active()){
+    Serial.print("Reset ");
+    epd.reset();
+  }
   x += 50;
   if (x > 1150){
     x = 0;
@@ -33,24 +48,22 @@ void loop() {
   if (y > 745){
     y = 0;
   }
-  Serial.print(x);  
-  Serial.print(", ");  
-  Serial.print(y);  
-  Serial.println(" Load");  
+  Serial.print("Load ");
   Serial.println(epd.load(test, 1000, x, y, 50, 80));
-Serial.println("Display");  
-  if (n++ % 5 == 0)
+ 
+  if (n++ % 5 == 0){
+    Serial.print("Full refresh ");
     Serial.println(epd.display(0, 0, 2000, 2000));
- else
+  } else {
+    Serial.print("Partial refresh ");
     Serial.println(epd.display(x,y, 50, 80));
-  
 
-  Serial.print("width ");
-  Serial.println(epd.width());
-  Serial.println("Sleep 5s");
+  }
+  Serial.print("Sleep ");
+  Serial.println(epd.sleep());
+  Serial.println();
   /* esp_sleep_enable_timer_wakeup(1000000);
   if (esp_light_sleep_start() != ESP_OK)*/{
-     Serial.println("Delay 5s");
      delay(1000);
   }
 }

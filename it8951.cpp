@@ -11,6 +11,15 @@ bool IT8951::begin(uint32_t speed, uint32_t timeoutReady, uint32_t timeoutDispla
   this->timeoutReady = timeoutReady;
   this->timeoutDisplay = timeoutDisplay;
 
+  return reset();
+}
+
+void IT8951::end(){
+  SPI.end();
+}
+
+bool IT8951::reset(){
+  SPI.end();
   // busy state
   pinMode(_hrdy, INPUT);
 
@@ -26,7 +35,6 @@ bool IT8951::begin(uint32_t speed, uint32_t timeoutReady, uint32_t timeoutDispla
   pinMode(_rst, OUTPUT);
   delay(10);
   digitalWrite(_rst, HIGH);
-  Serial.println(SPIspeed);
   delay(10);
   waitUntilReady(10000);
   // get Dev Info
@@ -35,7 +43,7 @@ bool IT8951::begin(uint32_t speed, uint32_t timeoutReady, uint32_t timeoutDispla
   // Enable I80 Packed mode
   bool val = writeRegister(I80CPCR, 0x0001);
   delay(10);
-
+  setImageBuffer(info.imgBufAddrL | (info.imgBufAddrH << 16));
   return val;
 }
 
@@ -98,44 +106,6 @@ bool IT8951::read(uint16_t data[], size_t len) {
   return success;
 }
 
-bool IT8951::updateDeviceInfo(){
-  if (command(GET_DEV_INFO) && read(info.data, 20)){
-    Serial.print("Device Info:\n Panel ");
-    Serial.print(info.width);
-    Serial.print(" x ");
-    Serial.println(info.height);
-    Serial.print(" Address 0x");
-    Serial.println(info.imgBufAddrL | (info.imgBufAddrH << 16), HEX);
-    Serial.print(" Firmware: ");
-    Serial.println(info.FWVersion);
-    Serial.print(" LUT: ");
-    Serial.println(info.LUTVersion);
-    return true;
-  } else {
-    return false;
-  }
-}
-
-uint16_t IT8951::width(){
-  return info.width;
-}
-
-uint16_t IT8951::height(){
-  return info.height;
-}
-  
-bool IT8951::active(){
-  return command(SYS_RUN);
-}
-
-bool IT8951::standby(){
-  return command(STANDBY);
-}
-
-bool IT8951::sleep(){
-  return command(SLEEP);
-}
-
 bool IT8951::readRegister(enum REGISTER reg, uint16_t & value){
   uint16_t v = reg;
   return command(REG_RD)
@@ -163,9 +133,58 @@ bool IT8951::waitForDisplay(uint32_t timeout){
   return false;
 }
 
+bool IT8951::updateDeviceInfo(){
+  return command(GET_DEV_INFO)
+      && read(info.data, 20);
+}
+
+uint32_t IT8951::defaultImageBuffer(){
+  return ((uint32_t)info.imgBufAddrL) | (((uint32_t)info.imgBufAddrH) << 16);
+}
+
 bool IT8951::setImageBuffer(uint32_t addr){
   //Write LISAR Reg
-  return writeRegister(LISAR_H, ((addr >> 16) & 0x0000FFFF)) && writeRegister(LISAR_L, addr & 0x0000FFFF);
+  return writeRegister(LISAR_H, ((addr >> 16) & 0x0000FFFF))
+      && writeRegister(LISAR_L, addr & 0x0000FFFF);
+}
+
+bool IT8951::getImageBuffer(uint32_t & addr){
+  // Read LISAR Reg
+  uint16_t low, high;
+  if (readRegister(LISAR_H, high) && readRegister(LISAR_L, low)){
+    addr = (((uint32_t)high) << 16) | ((uint32_t)low);
+    return true;
+  } else {
+    return false;
+  }
+}
+
+char * IT8951::getFW(){
+  return info.FWVersion;
+}
+
+char * IT8951::getLUT(){
+  return info.LUTVersion;
+}
+
+uint16_t IT8951::width(){
+  return info.width;
+}
+
+uint16_t IT8951::height(){
+  return info.height;
+}
+  
+bool IT8951::active(){
+  return command(SYS_RUN);
+}
+
+bool IT8951::standby(){
+  return command(STANDBY);
+}
+
+bool IT8951::sleep(){
+  return command(SLEEP);
 }
 
 bool IT8951::memBurstWrite(uint32_t addr, uint32_t size, uint16_t * buf){
@@ -222,24 +241,18 @@ bool IT8951::load(uint16_t *buf, size_t len, uint16_t x, uint16_t y, uint16_t wi
 
   if (req != len)
     return false;
-Serial.println("x");
-  // Set Image Buffer Address
-  if (!setImageBuffer(addr == 0 ? (info.imgBufAddrL | (info.imgBufAddrH << 16)) : addr))
-    return false;
 
   // Calculate attributes
   uint16_t arg = (e << 8) | (bpp << 4) | (rot);
-Serial.println("y");
+
   // Full / partial refresh
   if (x == 0 && y == 0 && width == info.width && height == info.height) {
-    Serial.println("z1");
     return command(LD_IMG)
         && write(&arg, 1)
         && write(buf, len)
         && command(LD_IMG_END);
   } else {
     uint16_t args[5] = { arg, x, y, width, height };
-    Serial.println("z2");
     return command(LD_IMG_AREA)
         && write(args, 5)
         && write(buf, len)
@@ -288,16 +301,13 @@ bool IT8951::fill(uint16_t pattern, uint16_t x, uint16_t y, uint16_t width, uint
       rep /= 2;
   }
 
-  // Set Image Buffer Address
-  if (!setImageBuffer(addr == 0 ? (info.imgBufAddrL | (info.imgBufAddrH << 16)) : addr))
-    return false;
-
   // Calculate attributes
   uint16_t arg = (e << 8) | (bpp << 4) | (rot);
 
   // Full / partial refresh
   if (x == 0 && y == 0 && width == info.width && height == info.height) {
-    return command(LD_IMG)
+    return waitForDisplay()
+        && command(LD_IMG)
         && write(&arg, 1)
         && write(&pattern, 1, rep)
         && command(LD_IMG_END);
@@ -305,7 +315,8 @@ bool IT8951::fill(uint16_t pattern, uint16_t x, uint16_t y, uint16_t width, uint
   } else {
     
     uint16_t args[5] = { arg, x, y, width, height };
-    return command(LD_IMG_AREA)
+    return waitForDisplay()
+        && command(LD_IMG_AREA)
         && write(args, 5)
         && write(&pattern, 1, rep)
         && command(LD_IMG_END);

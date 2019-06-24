@@ -106,6 +106,10 @@ class IT8951 {
    *  \return true if sucessfully initialized
    */
   bool begin(uint32_t speed = 4000000, uint32_t timeoutReady = 1000, uint32_t timeoutDisplay = 10000);
+
+  /** \brief Deinitialize E-Paper Display connection
+   */
+  void end();
   
   /** \brief Set Display Active
    *  Enable clocks
@@ -123,6 +127,33 @@ class IT8951 {
    *  \return true if command successfully sent
    */
   bool sleep();
+  
+  /** \brief (Hard)Reset the Display
+   *  \return true if successfully resetted
+   */
+  bool reset();
+
+  /** \brief Retrieve/Update Device and Panel Information
+   *  \return true if successfully updated device information
+   */
+  bool updateDeviceInfo();
+
+  /** \brief Set Target Memory Buffer
+   *  \param addr   Target memory buffer base address (default: 0 for auto image buffer)
+   *  \return true if successfully updated image buffer register
+   */
+  bool setImageBuffer(uint32_t addr);
+
+  /** \brief Get current Target Memory Buffer
+   *  \param addr   Target memory buffer base address (default: 0 for auto image buffer)
+   *  \return true if successfully received image buffer register
+   */
+  bool getImageBuffer(uint32_t & addr);
+
+  /** \brief Retrieve default target Memory Buffer
+   *  \return true Default target memory buffer base address
+   */
+  uint32_t defaultImageBuffer();
 
   /** \brief Get Display Width
    *  \return width of display
@@ -133,6 +164,16 @@ class IT8951 {
    *  \return height of display
    */
   uint16_t height();
+
+  /** \brief Get Firmware Version
+   *  \return pointer to 8 byte string buffer
+   */
+  char * getFW();
+
+  /** \brief Get LUT Version
+   *  \return pointer to 8 byte string buffer
+   */
+  char * getLUT();
 
   /** \brief Load Image from host buffer into IT8951 buffer
    *  
@@ -189,10 +230,7 @@ class IT8951 {
    */
   bool display(uint16_t x = 0, uint16_t y = 0, uint16_t width = UINT16_MAX, uint16_t height = UINT16_MAX, uint16_t mode = 2, uint32_t addr = 0);
 
-  /** \brief Retrieve/Update Device and Panel Information
-   */
-  bool updateDeviceInfo();
-  
+    
  private:
   bool waitUntilReady(uint32_t timeout = 0);
   bool command(enum COMMANDS cmd);
@@ -203,8 +241,7 @@ class IT8951 {
   bool waitForDisplay(uint32_t timeout = 0);
   bool memBurstWrite(uint32_t addr, uint32_t size, uint16_t * buf);
   bool memBurstRead(uint32_t addr, uint32_t size, uint16_t * buf);
-  bool setImageBuffer(uint32_t addr);
-  
+ 
 
   int _cs, _rst, _hrdy;
   DevInfo info;

@@ -10,17 +10,19 @@ void setup() {
   Serial.println("Init");
 
   epd.begin(4000000);
-
-  Serial.println(epd.display(0, 0, UINT16_MAX, UINT16_MAX, 0));
+  Serial.println("Ready");
+  //Serial.println(epd.display(0, 0, UINT16_MAX, UINT16_MAX, 0));
   //Serial.println(epd.display());
   for (int i = 0; i < 1000; i++)
     test[i] = 0x00ff;
 
- // epd.clear(true, 200, 200, 100, 100);
+  epd.clear();
+  Serial.println("Cleared");
 }
 
 int x = 0;
 int y = 0;
+int n = 0;
 void loop() {
   Serial.println("Looping");
   x += 50;
@@ -31,17 +33,24 @@ void loop() {
   if (y > 745){
     y = 0;
   }
-    
-  Serial.println(epd.loadImage(test, 1000, x, y, 50, 80));
-  Serial.println(epd.display(x, y, 50, 80, 3));
+  Serial.print(x);  
+  Serial.print(", ");  
+  Serial.print(y);  
+  Serial.println(" Load");  
+  Serial.println(epd.load(test, 1000, x, y, 50, 80));
+Serial.println("Display");  
+  if (n++ % 5 == 0)
+    Serial.println(epd.display(0, 0, 2000, 2000));
+ else
+    Serial.println(epd.display(x,y, 50, 80));
   
 
   Serial.print("width ");
   Serial.println(epd.width());
   Serial.println("Sleep 5s");
-  esp_sleep_enable_timer_wakeup(5000000);
-  if (esp_light_sleep_start() != ESP_OK){
+  /* esp_sleep_enable_timer_wakeup(1000000);
+  if (esp_light_sleep_start() != ESP_OK)*/{
      Serial.println("Delay 5s");
-     delay(5000000);
+     delay(1000);
   }
 }

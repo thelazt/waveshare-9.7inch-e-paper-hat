@@ -101,23 +101,28 @@ class IT8951 {
 
   /** \brief Initialize E-Paper Display connection
    *  \param speed SPI speed in Hz
+   *  \param timeoutReady maximum time (in milliseconds) to wait for ready line
+   *  \param timeoutDisplay maximum time (in milliseconds) to wait for display refresh ready (excluding ready line)
    *  \return true if sucessfully initialized
    */
-  bool begin(uint32_t speed = 4000000);
+  bool begin(uint32_t speed = 4000000, uint32_t timeoutReady = 1000, uint32_t timeoutDisplay = 10000);
   
-  /** \brief Active
+  /** \brief Set Display Active
    *  Enable clocks
+   *  \return true if command successfully sent
    */
-  void active();
+  bool active();
 
-  /** \brief Standby
+  /** \brief Set Display in standby mode
    *  Disable clocks
+   *  \return true if command successfully sent
    */
-  void standby();
+  bool standby();
 
-  /** \brief Sleep mode
+  /** \brief Set Display in sleep mode
+   *  \return true if command successfully sent
    */
-  void sleep();
+  bool sleep();
 
   /** \brief Get Display Width
    *  \return width of display
@@ -129,7 +134,7 @@ class IT8951 {
    */
   uint16_t height();
 
-  /** \brief Load Image from host buffer
+  /** \brief Load Image from host buffer into IT8951 buffer
    *  
    *  \param buf    pointer to host buffer
    *  \param len    length of buffer
@@ -143,20 +148,23 @@ class IT8951 {
    *  \param addr   Target memory buffer base address (default: 0 for auto image buffer)
    *  \return true if successfully executed, false on error (dimension issues, length invalid etc)
    */
-  bool loadImage(uint16_t *buf, size_t len, uint16_t x = 0, uint16_t y = 0, uint16_t width = UINT16_MAX, uint16_t height = UINT16_MAX, enum ROTATE rot = ROTATE_0, enum BPP bpp = BPP_4, enum ENDIAN e = LITTLE, uint32_t addr = 0);
+  bool load(uint16_t *buf, size_t len, uint16_t x = 0, uint16_t y = 0, uint16_t width = UINT16_MAX, uint16_t height = UINT16_MAX, enum ROTATE rot = ROTATE_0, enum BPP bpp = BPP_4, enum ENDIAN e = LITTLE, uint32_t addr = 0);
 
- /** \brief Display loaded buffer
+  /** \brief Fill Image buffer with Pattern
    *  
-   *  \param x      left space (default: no space)
-   *  \param y      top space (default: no space)
-   *  \param width  width of image (default: UINT16_MAX for maximum of display)
-   *  \param height height of image (default: UINT16_MAX for maximum of display)
-   *  \param mode   Mode (waveform?)
-   *  \param addr   Target memory buffer base address (default: 0 for auto image buffer)
+   *  \param pattern 16 Bit Pattern
+   *  \param x       left space (default: no space)
+   *  \param y       top space (default: no space)
+   *  \param width   width of image (default: UINT16_MAX for maximum of display)
+   *  \param height  height of image (default: UINT16_MAX for maximum of display)
+   *  \param rot     Rotation of image (default: none)
+   *  \param bpp     Bits per pixel, buffer packed like described in IT8951 Manual / Fig 7-17 (default: 4bpp / 16 color)
+   *  \param e       Endianess (default: little endian)
+   *  \param addr    Target memory buffer base address (default: 0 for auto image buffer)
    *  \return true if successfully executed, false on error (dimension issues, length invalid etc)
    */
-  bool display(uint16_t x = 0, uint16_t y = 0, uint16_t width = UINT16_MAX, uint16_t height = UINT16_MAX, uint16_t mode = 2, uint32_t addr = 0);
-
+  bool fill(uint16_t pattern, uint16_t x = 0, uint16_t y = 0, uint16_t width = UINT16_MAX, uint16_t height = UINT16_MAX, enum ROTATE rot = ROTATE_0, enum BPP bpp = BPP_4, enum ENDIAN e = LITTLE, uint32_t addr = 0);
+  
   /** \brief Clear Image buffer
    *  
    *  \param white  white or black
@@ -164,30 +172,42 @@ class IT8951 {
    *  \param y      top space (default: no space)
    *  \param width  width of image (default: UINT16_MAX for maximum of display)
    *  \param height height of image (default: UINT16_MAX for maximum of display)
-   *  \param mode   Mode (waveform?)
+   *  \param addr    Target memory buffer base address (default: 0 for auto image buffer)
    *  \return true if successfully executed, false on error (dimension issues, length invalid etc)
    */
-  bool clear(uint16_t x = 0, uint16_t y = 0, uint16_t width = UINT16_MAX, uint16_t height = UINT16_MAX, uint16_t mode = 0);
+  bool clear(bool white = true, uint16_t x = 0, uint16_t y = 0, uint16_t width = UINT16_MAX, uint16_t height = UINT16_MAX, uint32_t addr = 0);
+
+ /** \brief Display IT8951 buffer
+   *  
+   *  \param x      left space (default: no space)
+   *  \param y      top space (default: no space)
+   *  \param width  width of image (default: UINT16_MAX for maximum of display)
+   *  \param height height of image (default: UINT16_MAX for maximum of display)
+   *  \param mode   Mode (waveform? Found no documentation, but display function 2 works quite well)
+   *  \param addr   Target memory buffer base address (default: 0 for auto image buffer)
+   *  \return true if successfully executed, false on error (dimension issues, length invalid etc)
+   */
+  bool display(uint16_t x = 0, uint16_t y = 0, uint16_t width = UINT16_MAX, uint16_t height = UINT16_MAX, uint16_t mode = 2, uint32_t addr = 0);
 
   /** \brief Retrieve/Update Device and Panel Information
    */
-  void updateDeviceInfo();
+  bool updateDeviceInfo();
   
  private:
-  void waitUntilReady();
-  void command(enum COMMANDS cmd);
-  void write(uint16_t data[], size_t len);
-  void read(uint16_t data[], size_t len);
-  uint16_t readRegister(enum REGISTER reg);
-  void writeRegister(enum REGISTER reg, uint16_t value);
-  void waitForDisplay();
-  void memBurstWrite(uint32_t addr, uint32_t size, uint16_t * buf);
-  void memBurstRead(uint32_t addr, uint32_t size, uint16_t * buf);
-  void setImageBuffer(uint32_t addr);
+  bool waitUntilReady(uint32_t timeout = 0);
+  bool command(enum COMMANDS cmd);
+  bool write(uint16_t data[], size_t len, size_t repeat = 1);
+  bool read(uint16_t data[], size_t len);
+  bool readRegister(enum REGISTER reg, uint16_t &value);
+  bool writeRegister(enum REGISTER reg, uint16_t value);
+  bool waitForDisplay(uint32_t timeout = 0);
+  bool memBurstWrite(uint32_t addr, uint32_t size, uint16_t * buf);
+  bool memBurstRead(uint32_t addr, uint32_t size, uint16_t * buf);
+  bool setImageBuffer(uint32_t addr);
   
 
   int _cs, _rst, _hrdy;
   DevInfo info;
-  uint32_t SPIspeed; 
+  uint32_t SPIspeed, timeoutReady, timeoutDisplay; 
 
 };
